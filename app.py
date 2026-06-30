@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+import os
 
-# إعداد الصفحة مع إضافة الأيقونة
+# إعداد الصفحة
 st.set_page_config(
     page_title="نظام إدارة المياه المطور", 
-    page_icon="icon.ico", 
+    page_icon="icon.png", 
     layout="wide"
 )
 
@@ -19,7 +20,7 @@ def init_db():
 
 init_db()
 
-# 2. نظام الحماية (جلسة الدخول)
+# 2. نظام الحماية
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -34,7 +35,7 @@ conn.close()
 if not df.empty:
     df['consumption'] = df['current_reading'] - df['last_reading']
     
-    # 4. لوحة الإحصائيات والرسم البياني
+    # 4. لوحة الإحصائيات
     with st.expander("📊 تحليل الاستهلاك العام"):
         st.bar_chart(df[['name', 'consumption']].set_index('name'))
 
@@ -45,7 +46,7 @@ if not df.empty:
     page = st.number_input("رقم الصفحة", min_value=1, value=1)
     subset = filtered_df.iloc[(page-1)*6 : page*6]
     
-    # 5. عرض البطاقات مع التنبيهات
+    # 5. عرض البطاقات
     cols = st.columns(3)
     for i, (_, row) in enumerate(subset.iterrows()):
         with cols[i % 3]:
@@ -53,7 +54,7 @@ if not df.empty:
                 st.subheader(f"👤 {row['name']}")
                 st.write(f"الاستهلاك: **{row['consumption']:.2f} م³**")
                 
-                # التنبيهات الذكية
+                # التنبيهات
                 if row['consumption'] > 100: st.error("⚠️ استهلاك مرتفع جداً!")
                 elif row['consumption'] > 50: st.warning("⚠️ استهلاك متوسط-مرتفع")
                 else: st.success("✅ استهلاك طبيعي")
@@ -66,7 +67,7 @@ if not df.empty:
                         conn.close()
                         st.rerun()
 
-# 6. القائمة الجانبية (الإدارة والتصدير)
+# 6. القائمة الجانبية
 with st.sidebar:
     st.header("⚙️ لوحة الإدارة")
     if not st.session_state.logged_in:
@@ -82,7 +83,6 @@ with st.sidebar:
             st.session_state.logged_in = False
             st.rerun()
             
-        # زر تصدير التقرير
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 تحميل تقرير Excel", csv, "report.csv", "text/csv")
         
