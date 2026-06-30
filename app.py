@@ -5,15 +5,37 @@ import sqlite3
 st.title("💧 نظام عدادات المياه")
 
 # الاتصال بقاعدة البيانات
-conn = sqlite3.connect('village_water.db')
+def get_data():
+    try:
+        conn = sqlite3.connect('village_water.db')
+        # التأكد من وجود الجدول قبل القراءة
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS subscribers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                last_reading REAL,
+                current_reading REAL
+            )
+        ''')
+        conn.commit()
+        
+        df = pd.read_sql_query("SELECT * FROM subscribers", conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"خطأ في الاتصال: {e}")
+        return pd.DataFrame()
 
 # عرض البيانات
+df = get_data()
 st.subheader("جدول بيانات المشتركين")
-df = pd.read_sql_query("SELECT * FROM subscribers", conn)
-st.table(df)
+if not df.empty:
+    st.table(df)
+else:
+    st.info("قاعدة البيانات فارغة، أضف مشتركاً جديداً.")
 
-# إضافة مشترك جديد
-st.sidebar.subheader("إضافة مشترك جديد")
+# نموذج الإضافة
 with st.sidebar.form("add_form"):
     name = st.text_input("اسم المشترك")
     last = st.number_input("القراءة السابقة")
@@ -21,10 +43,10 @@ with st.sidebar.form("add_form"):
     submit = st.form_submit_button("إضافة")
 
 if submit:
+    conn = sqlite3.connect('village_water.db')
     cursor = conn.cursor()
     cursor.execute('INSERT INTO subscribers (name, last_reading, current_reading) VALUES (?, ?, ?)', (name, last, curr))
     conn.commit()
-    st.success("تمت الإضافة بنجاح!")
+    conn.close()
+    st.success("تمت الإضافة!")
     st.rerun()
-
-conn.close()
