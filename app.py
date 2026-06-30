@@ -18,35 +18,51 @@ df = get_data()
 
 st.title("💧 نظام إدارة عدادات المياه")
 
-# 2. عرض البيانات بنظام البطاقات (بدون CSS معقد يفسد الشكل)
-if not df.empty:
-    df['consumption'] = df['current_reading'] - df['last_reading']
+# 2. البحث (Search)
+st.subheader("لوحة التحكم والبحث")
+search = st.text_input("🔍 ابحث عن مشترك بالاسم...")
+
+# فلترة البيانات
+if search:
+    filtered_df = df[df['name'].str.contains(search, case=False, na=False)]
+else:
+    filtered_df = df
+
+# 3. نظام التصفح (Pagination)
+if not filtered_df.empty:
+    filtered_df['consumption'] = filtered_df['current_reading'] - filtered_df['last_reading']
     
-    # تقسيم الأعمدة لعرض البطاقات
+    page_size = 6
+    total_pages = (len(filtered_df) - 1) // page_size + 1
+    
+    # اختيار رقم الصفحة
+    page = st.number_input("رقم الصفحة", min_value=1, max_value=total_pages, value=1)
+    
+    # تقسيم البيانات حسب الصفحة
+    subset = filtered_df.iloc[(page-1)*page_size : page*page_size]
+    
+    # عرض البطاقات
     cols = st.columns(3)
-    
-    for index, row in df.iterrows():
-        # نستخدم الـ col المتغير لعرض البطاقات
+    for index, (_, row) in enumerate(subset.iterrows()):
         with cols[index % 3]:
-            # استخدام st.container بحدود بسيطة وبدون أكواد HTML كثيرة
             with st.container(border=True):
                 st.subheader(f"👤 {row['name']}")
-                st.write(f"**الاستهلاك:** {row['consumption']:.2f} م³")
+                st.write(f"الاستهلاك: **{row['consumption']:.2f} م³**")
                 st.caption(f"قراءة حالية: {row['current_reading']}")
                 
                 # زر الحذف
-                if st.button(f"حذف {row['name']}", key=f"btn_{row['id']}"):
+                if st.button(f"حذف {row['name']}", key=f"del_{row['id']}"):
                     conn = sqlite3.connect('village_water.db')
                     conn.execute('DELETE FROM subscribers WHERE id = ?', (row['id'],))
                     conn.commit()
                     conn.close()
                     st.rerun()
 else:
-    st.info("قاعدة البيانات فارغة.")
+    st.info("لا توجد بيانات تطابق بحثك.")
 
-# 3. القائمة الجانبية للإضافة
+# 4. القائمة الجانبية للإضافة
 with st.sidebar:
-    st.header("إضافة مشترك")
+    st.header("➕ إضافة مشترك جديد")
     with st.form("add_form", clear_on_submit=True):
         name = st.text_input("اسم المشترك")
         last = st.number_input("القراءة السابقة")
