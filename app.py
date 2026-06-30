@@ -2,8 +2,12 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
-# إعداد الصفحة
-st.set_page_config(page_title="نظام إدارة المياه المطور", layout="wide")
+# إعداد الصفحة مع إضافة الأيقونة
+st.set_page_config(
+    page_title="نظام إدارة المياه المطور", 
+    page_icon="icon.ico", 
+    layout="wide"
+)
 
 # 1. إعداد قاعدة البيانات
 def init_db():
