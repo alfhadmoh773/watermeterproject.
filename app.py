@@ -1,20 +1,17 @@
 import streamlit as st
 import pandas as pd
 
-st.title("عداد مياه القرية - نموذج تجريبي")
+st.title("Water Meter System")
 
-# بيانات تجريبية (بدون ربط)
 data = {
-    'المشترك': ['أحمد', 'سالم', 'علي'],
-    'الاستهلاك الحالي (متر مكعب)': [60, 250, 45],
-    'الحالة': ['طبيعي', 'خطر تسريب!', 'طبيعي']
+    'User': ['Ahmed', 'Salem', 'Ali'],
+    'Usage': [60, 250, 45],
+    'Status': ['Normal', 'Leak Alert!', 'Normal']
 }
 
 df = pd.DataFrame(data)
 
-st.write("جدول قراءات العدادات:")
 st.table(df)
 
-# إضافة تنبيه بسيط
-if st.button('فحص التسريبات'):
-    st.error("تنبيه: المشترك سالم لديه استهلاك عالٍ!")
+if st.button('Check Leaks'):
+    st.error("Alert: Salem has high consumption!")
