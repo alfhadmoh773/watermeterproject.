@@ -1,17 +1,30 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
 
-st.title("Water Meter System")
+st.title("💧 نظام عدادات المياه")
 
-data = {
-    'User': ['Ahmed', 'Salem', 'Ali'],
-    'Usage': [60, 250, 45],
-    'Status': ['Normal', 'Leak Alert!', 'Normal']
-}
+# الاتصال بقاعدة البيانات
+conn = sqlite3.connect('village_water.db')
 
-df = pd.DataFrame(data)
-
+# عرض البيانات
+st.subheader("جدول بيانات المشتركين")
+df = pd.read_sql_query("SELECT * FROM subscribers", conn)
 st.table(df)
 
-if st.button('Check Leaks'):
-    st.error("Alert: Salem has high consumption!")
+# إضافة مشترك جديد
+st.sidebar.subheader("إضافة مشترك جديد")
+with st.sidebar.form("add_form"):
+    name = st.text_input("اسم المشترك")
+    last = st.number_input("القراءة السابقة")
+    curr = st.number_input("القراءة الحالية")
+    submit = st.form_submit_button("إضافة")
+
+if submit:
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO subscribers (name, last_reading, current_reading) VALUES (?, ?, ?)', (name, last, curr))
+    conn.commit()
+    st.success("تمت الإضافة بنجاح!")
+    st.rerun()
+
+conn.close()
