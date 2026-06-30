@@ -12,15 +12,14 @@ st.markdown("""
     .card {
         background-color: #ffffff;
         border-radius: 20px;
-        padding: 25px;
+        padding: 20px;
         margin-bottom: 20px;
         border: 1px solid #e0e0e0;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         transition: transform 0.2s;
     }
     .card:hover { transform: translateY(-5px); border-color: #007BFF; }
-    .metric-card { background: #fff; padding: 20px; border-radius: 15px; text-align: center; border: 1px solid #eee; }
-    h1, h2, h3 { color: #2c3e50; }
+    .metric-card { background: #fff; padding: 15px; border-radius: 15px; text-align: center; border: 1px solid #eee; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -32,55 +31,64 @@ def init_db():
     conn.commit()
     conn.close()
 
+def get_data():
+    try:
+        conn = sqlite3.connect('village_water.db')
+        df = pd.read_sql_query("SELECT * FROM subscribers", conn)
+        conn.close()
+        return df
+    except:
+        return pd.DataFrame()
+
 init_db()
 
-# --- واجهة التطبيق ---
+# --- الواجهة ---
 st.title("💧 نظام إدارة عدادات المياه")
 
-conn = sqlite3.connect('village_water.db')
-df = pd.read_sql_query("SELECT * FROM subscribers", conn)
-conn.close()
+df = get_data()
 
+# عرض الإحصائيات إذا وجد بيانات
 if not df.empty:
     df['consumption'] = df['current_reading'] - df['last_reading']
-    
-    # الإحصائيات في الأعلى
     c1, c2, c3 = st.columns(3)
     c1.markdown(f"<div class='metric-card'><h3>{len(df)}</h3>مشترك</div>", unsafe_allow_html=True)
     c2.markdown(f"<div class='metric-card'><h3>{df['consumption'].sum():.1f}</h3>إجمالي الاستهلاك</div>", unsafe_allow_html=True)
     c3.markdown(f"<div class='metric-card'><h3>{df['consumption'].mean():.1f}</h3>متوسط الاستهلاك</div>", unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("---")
 
 # البحث والتصفح
-search = st.text_input("🔍 ابحث عن مشترك...")
-filtered_df = df[df['name'].str.contains(search, case=False, na=False)] if search else df
+search = st.text_input("🔍 ابحث عن مشترك بالاسم...")
+filtered_df = df[df['name'].str.contains(search, case=False, na=False)] if search and not df.empty else df
 
-page_size = 6
-total_pages = (len(filtered_df) - 1) // page_size + 1
-page = st.slider("اختر الصفحة", 1, max(1, total_pages), 1)
-
-# عرض البطاقات
-subset = filtered_df.iloc[(page-1)*page_size : page*page_size]
-cols = st.columns(3)
-for i, (_, row) in enumerate(subset.iterrows()):
-    with cols[i % 3]:
-        st.markdown(f"""
-        <div class="card">
-            <h4>👤 {row['name']}</h4>
-            <p>الاستهلاك: <b>{row['consumption']:.2f} م³</b></p>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button(f"حذف {row['name']}", key=f"del_{row['id']}"):
-            conn = sqlite3.connect('village_water.db')
-            conn.execute('DELETE FROM subscribers WHERE id = ?', (row['id'],))
-            conn.commit()
-            conn.close()
-            st.rerun()
+if not filtered_df.empty:
+    page_size = 6
+    total_pages = (len(filtered_df) - 1) // page_size + 1
+    page = st.slider("اختر الصفحة", 1, max(1, total_pages), 1)
+    
+    subset = filtered_df.iloc[(page-1)*page_size : page*page_size]
+    
+    cols = st.columns(3)
+    for i, (_, row) in enumerate(subset.iterrows()):
+        with cols[i % 3]:
+            st.markdown(f"""
+            <div class="card">
+                <h4>👤 {row['name']}</h4>
+                <p>الاستهلاك: <b>{row['consumption']:.2f} م³</b></p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"حذف {row['name']}", key=f"del_{row['id']}"):
+                conn = sqlite3.connect('village_water.db')
+                conn.execute('DELETE FROM subscribers WHERE id = ?', (row['id'],))
+                conn.commit()
+                conn.close()
+                st.rerun()
+else:
+    st.info("قاعدة البيانات فارغة أو لا توجد نتائج.")
 
 # الإضافة
 with st.sidebar:
-    st.header("➕ إضافة مشترك")
+    st.header("➕ إضافة مشترك جديد")
     with st.form("add_form", clear_on_submit=True):
         name = st.text_input("اسم المشترك")
         last = st.number_input("القراءة السابقة", format="%.4f")
