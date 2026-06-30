@@ -8,30 +8,45 @@ st.set_page_config(page_title="نظام عدادات المياه", layout="wide
 # 1. الاتصال بقاعدة البيانات
 def get_data():
     conn = sqlite3.connect('village_water.db')
-    # التأكد من وجود الجدول
     conn.execute('''CREATE TABLE IF NOT EXISTS subscribers 
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, last_reading REAL, current_reading REAL)''')
     df = pd.read_sql_query("SELECT * FROM subscribers", conn)
     conn.close()
     return df
 
-# 2. جلب البيانات
 df = get_data()
 
 st.title("💧 نظام إدارة عدادات المياه")
 
-# 3. عرض البيانات (باستخدام st.dataframe وهو الأكثر استقراراً)
+# 2. عرض البيانات بنظام البطاقات (بدون CSS معقد يفسد الشكل)
 if not df.empty:
     df['consumption'] = df['current_reading'] - df['last_reading']
     
-    st.subheader("جدول بيانات المشتركين")
-    st.dataframe(df, use_container_width=True) # عرض الجدول بشكل متناسق مع الشاشة
+    # تقسيم الأعمدة لعرض البطاقات
+    cols = st.columns(3)
+    
+    for index, row in df.iterrows():
+        # نستخدم الـ col المتغير لعرض البطاقات
+        with cols[index % 3]:
+            # استخدام st.container بحدود بسيطة وبدون أكواد HTML كثيرة
+            with st.container(border=True):
+                st.subheader(f"👤 {row['name']}")
+                st.write(f"**الاستهلاك:** {row['consumption']:.2f} م³")
+                st.caption(f"قراءة حالية: {row['current_reading']}")
+                
+                # زر الحذف
+                if st.button(f"حذف {row['name']}", key=f"btn_{row['id']}"):
+                    conn = sqlite3.connect('village_water.db')
+                    conn.execute('DELETE FROM subscribers WHERE id = ?', (row['id'],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
 else:
     st.info("قاعدة البيانات فارغة.")
 
-# 4. إضافة مشترك (بسيط ومباشر)
+# 3. القائمة الجانبية للإضافة
 with st.sidebar:
-    st.header("إضافة مشترك جديد")
+    st.header("إضافة مشترك")
     with st.form("add_form", clear_on_submit=True):
         name = st.text_input("اسم المشترك")
         last = st.number_input("القراءة السابقة")
@@ -42,13 +57,3 @@ with st.sidebar:
             conn.commit()
             conn.close()
             st.rerun()
-
-# 5. حذف مشترك
-st.subheader("حذف مشترك")
-delete_id = st.number_input("أدخل رقم (ID) المشترك للحذف", min_value=1, step=1)
-if st.button("حذف المشترك"):
-    conn = sqlite3.connect('village_water.db')
-    conn.execute('DELETE FROM subscribers WHERE id = ?', (delete_id,))
-    conn.commit()
-    conn.close()
-    st.rerun()
