@@ -6,7 +6,8 @@ import sqlite3
 def init_db():
     conn = sqlite3.connect('village_water.db')
     c = conn.cursor()
-    # أضفنا عمود 'added_by' ليحفظ اسم المدير الذي أضاف المشترك
+    # حذف الجدول القديم لضمان تحديثه بالأعمدة الجديدة (فقط إذا كنت لا تمانع فقدان البيانات الحالية)
+    c.execute('DROP TABLE IF EXISTS subscribers') 
     c.execute('''CREATE TABLE IF NOT EXISTS subscribers 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, added_by TEXT)''')
     conn.commit()
@@ -30,13 +31,11 @@ with st.sidebar:
     else:
         st.success("أنت الآن بصلاحيات المدير")
         
-        # نموذج الإضافة (سيقوم تلقائياً بتسجيل اسم المدير 'Admin')
         with st.form("add_sidebar", clear_on_submit=True):
             st.write("### ➕ إضافة مشترك")
             name = st.text_input("اسم المشترك")
             if st.form_submit_button("حفظ"):
                 conn = sqlite3.connect('village_water.db')
-                # هنا قمنا بتخزين 'Admin' في عمود added_by
                 conn.execute("INSERT INTO subscribers (name, added_by) VALUES (?, ?)", (name, "المدير"))
                 conn.commit()
                 conn.close()
@@ -62,9 +61,10 @@ if not df.empty:
     cols = st.columns(4)
     for index, row in df.iterrows():
         with cols[index % 4]:
-            # هنا التعديل: عرض اسم من أضاف المشترك بدلاً من الـ ID
             with st.container(border=True):
-                st.write(f"👤 **الاسم:** {row['name']}")
-                st.write(f"✍️ **بواسطة:** {row['added_by'] if row['added_by'] else 'غير معروف'}")
+                st.write(f"👤 **{row['name']}**")
+                # استخدام .get لتجنب الخطأ إذا كان العمود لا يزال غير موجود في بعض الحالات
+                added_by = row.get('added_by', 'غير معروف')
+                st.write(f"✍️ بواسطة: {added_by}")
 else:
     st.info("لا يوجد مشتركين.")
