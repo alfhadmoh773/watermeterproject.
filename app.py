@@ -6,21 +6,17 @@ import sqlite3
 def init_db():
     conn = sqlite3.connect('village_water.db')
     c = conn.cursor()
-    # جدول المشتركين
     c.execute('''CREATE TABLE IF NOT EXISTS subscribers 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT)''')
-    # جدول القراءات
-    c.execute('''CREATE TABLE IF NOT EXISTS readings 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, subscriber_id INTEGER, last_reading REAL, current_reading REAL)''')
     conn.commit()
     conn.close()
 
 init_db()
 
 st.set_page_config(page_title="نظام إدارة المياه", layout="wide")
-st.title("💧 نظام إدارة المشتركين والعدادات")
+st.title("💧 نظام إدارة عدادات المياه - عرض البطاقات")
 
-# لوحة التحكم الجانبية (محمية)
+# 1. لوحة تحكم المدير (محمية)
 with st.sidebar:
     st.header("⚙️ لوحة الإدارة")
     if "admin" not in st.session_state: st.session_state.admin = False
@@ -31,38 +27,44 @@ with st.sidebar:
             if pwd == "12345": st.session_state.admin = True; st.rerun()
             else: st.error("كلمة المرور خطأ")
     else:
-        st.success("تم الدخول بصلاحيات المدير")
+        st.success("أنت الآن بصلاحيات المدير")
         if st.button("خروج"): st.session_state.admin = False; st.rerun()
 
-# أدوات الإدارة
+# 2. أدوات الإضافة والحذف (تظهر للمدير فقط)
 if st.session_state.admin:
     st.divider()
-    tab1, tab2 = st.tabs(["👥 إدارة المشتركين", "📈 إدارة القراءات"])
-    
-    with tab1:
-        st.subheader("إضافة أو حذف مشترك")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            with st.form("add_sub"):
-                new_name = st.text_input("اسم المشترك الجديد")
-                if st.form_submit_button("إضافة مشترك"):
-                    conn = sqlite3.connect('village_water.db')
-                    conn.execute("INSERT INTO subscribers (name) VALUES (?)", (new_name,))
-                    conn.commit()
-                    conn.close()
-                    st.rerun()
-        with col_b:
-            sub_id = st.number_input("رقم المشترك (ID) للحذف:", min_value=1)
-            if st.button("حذف المشترك نهائياً"):
+    col1, col2 = st.columns(2)
+    with col1:
+        with st.form("add_sub", clear_on_submit=True):
+            name = st.text_input("اسم المشترك الجديد")
+            if st.form_submit_button("إضافة مشترك"):
                 conn = sqlite3.connect('village_water.db')
-                conn.execute("DELETE FROM subscribers WHERE id=?", (sub_id,))
+                conn.execute("INSERT INTO subscribers (name) VALUES (?)", (name,))
                 conn.commit()
                 conn.close()
                 st.rerun()
+    with col2:
+        sub_id = st.number_input("رقم المشترك (ID) للحذف:", min_value=1, step=1)
+        if st.button("حذف هذا المشترك"):
+            conn = sqlite3.connect('village_water.db')
+            conn.execute("DELETE FROM subscribers WHERE id=?", (sub_id,))
+            conn.commit()
+            conn.close()
+            st.rerun()
+    st.divider()
 
-# عرض البيانات للجميع
-st.subheader("📋 قائمة المشتركين المسجلين")
+# 3. عرض المشتركين على شكل بطاقات (للجميع)
+st.subheader("👥 قائمة المشتركين")
 conn = sqlite3.connect('village_water.db')
 df = pd.read_sql_query("SELECT * FROM subscribers", conn)
 conn.close()
-st.dataframe(df, use_container_width=True)
+
+if not df.empty:
+    cols = st.columns(4) # عرض 4 بطاقات في كل صف
+    for index, row in df.iterrows():
+        with cols[index % 4]:
+            with st.container(border=True):
+                st.subheader(f"👤 {row['name']}")
+                st.write(f"رقم المشترك: {row['id']}")
+else:
+    st.info("لا يوجد مشتركين حالياً.")
