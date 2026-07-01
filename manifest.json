@@ -1,10 +1,10 @@
 {
   "short_name": "مياه القرية",
   "name": "نظام إدارة مياه القرية - م. أبو الحجاج",
-  "description": "نظام رقمي لإدارة قراءات عدادات المياه والفواتير لقرية Ba'dan.",
+  "description": "نظام رقمي متطور لإدارة قراءات عدادات المياه والفواتير لقرية عروان.",
   "icons": [
     {
-      "src": "apple-touch-icon.png",
+      "src": "./apple-touch-icon.png",
       "sizes": "192x192",
       "type": "image/png"
     }
@@ -16,7 +16,7 @@
   "orientation": "portrait",
   "screenshots": [
     {
-      "src": "screenshot.png",
+      "src": "./screenshot.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow"
