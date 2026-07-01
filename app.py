@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
 
-# إعداد قاعدة البيانات (هيكلية نظيفة)
+# 1. تهيئة قاعدة البيانات (تأكد من حذف الملف القديم قبل التشغيل)
 def init_db():
     conn = sqlite3.connect('village_water.db')
     c = conn.cursor()
@@ -14,42 +13,36 @@ def init_db():
 
 init_db()
 
-st.set_page_config(page_title="نظام إدارة المياه", layout="wide")
-st.title("💧 نظام إدارة عدادات المياه الذكي")
+st.set_page_config(page_title="نظام المياه", layout="wide")
+st.title("💧 نظام إدارة عدادات المياه")
 
-# 1. لوحة الإدارة (في القائمة الجانبية فقط)
+# 2. القائمة الجانبية (الإدارة)
 with st.sidebar:
     st.header("⚙️ لوحة الإدارة")
     if "admin" not in st.session_state: st.session_state.admin = False
     
     if not st.session_state.admin:
-        pwd = st.text_input("كلمة مرور المدير:", type="password")
+        pwd = st.text_input("كلمة المرور:", type="password")
         if st.button("دخول"):
             if pwd == "12345": st.session_state.admin = True; st.rerun()
-            else: st.error("كلمة المرور خطأ")
     else:
-        st.success("أنت الآن بصلاحيات المدير")
-        # إضافة مشترك
-        with st.form("add_sub", clear_on_submit=True):
+        st.success("أنت المدير")
+        # نموذج الإضافة
+        with st.form("admin_form", clear_on_submit=True):
+            st.subheader("إضافة بيانات")
             name = st.text_input("اسم المشترك:")
-            if st.form_submit_button("إضافة مشترك"):
-                conn = sqlite3.connect('village_water.db')
-                conn.execute("INSERT INTO subscribers (name) VALUES (?)", (name,))
-                conn.commit(); conn.close(); st.rerun()
-        
-        # إضافة قراءة
-        with st.form("add_read", clear_on_submit=True):
-            sid = st.number_input("ID المشترك:", min_value=1, step=1)
             last = st.number_input("القراءة السابقة:")
             curr = st.number_input("القراءة الحالية:")
-            if st.form_submit_button("حفظ القراءة"):
+            if st.form_submit_button("حفظ المشترك والقراءة"):
                 conn = sqlite3.connect('village_water.db')
-                conn.execute("INSERT INTO readings (sub_id, last_reading, current_reading) VALUES (?,?,?)", (sid, last, curr))
+                c = conn.cursor()
+                c.execute("INSERT INTO subscribers (name) VALUES (?)", (name,))
+                sub_id = c.lastrowid
+                c.execute("INSERT INTO readings (sub_id, last_reading, current_reading) VALUES (?,?,?)", (sub_id, last, curr))
                 conn.commit(); conn.close(); st.rerun()
-        
         if st.button("خروج"): st.session_state.admin = False; st.rerun()
 
-# 2. العرض الرئيسي (بطاقات مرتبة)
+# 3. العرض الرئيسي (البطاقات)
 st.subheader("👥 قائمة المشتركين")
 conn = sqlite3.connect('village_water.db')
 subs = pd.read_sql_query("SELECT * FROM subscribers", conn)
@@ -59,21 +52,21 @@ conn.close()
 if not subs.empty:
     cols = st.columns(4)
     for i, row in subs.iterrows():
-        # ربط القراءة بالمشترك
+        # ربط دقيق للقراءة بالمشترك
         user_read = readings[readings['sub_id'] == row['id']]
         with cols[i % 4]:
             with st.container(border=True):
-                st.markdown(f"**🆔 ID:** {row['id']}")
-                st.markdown(f"**👤 الاسم:** {row['name']}")
+                st.write(f"🆔 **ID:** {row['id']}")
+                st.write(f"👤 **{row['name']}**")
                 
                 if not user_read.empty:
-                    last_r = user_read.iloc[-1]['last_reading']
-                    curr_r = user_read.iloc[-1]['current_reading']
-                    diff = curr_r - last_r
-                    st.write(f"📊 الاستهلاك: **{diff} وحدة**")
+                    last_val = user_read.iloc[-1]['last_reading']
+                    curr_val = user_read.iloc[-1]['current_reading']
+                    diff = curr_val - last_val
+                    st.write(f"📊 الاستهلاك: {diff} وحدة")
                     if diff > 50:
                         st.error("⚠️ استهلاك مرتفع!")
                 else:
                     st.warning("لا توجد قراءات")
 else:
-    st.info("لا يوجد مشتركين.")
+    st.info("لم يتم إضافة مشتركين بعد.")
