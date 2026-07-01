@@ -6,7 +6,9 @@ import sqlite3
 def init_db():
     conn = sqlite3.connect('village_water.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS subscribers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)''')
+    # أضفنا عمود 'added_by' ليحفظ اسم المدير الذي أضاف المشترك
+    c.execute('''CREATE TABLE IF NOT EXISTS subscribers 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, added_by TEXT)''')
     conn.commit()
     conn.close()
 
@@ -15,34 +17,31 @@ init_db()
 st.set_page_config(page_title="نظام إدارة المياه", layout="wide")
 st.title("💧 نظام إدارة عدادات المياه")
 
-# القائمة الجانبية (كل شيء يخص المدير هنا)
+# القائمة الجانبية للمدير
 with st.sidebar:
     st.header("⚙️ لوحة الإدارة")
     if "admin" not in st.session_state: st.session_state.admin = False
     
-    # حالة عدم الدخول
     if not st.session_state.admin:
         pwd = st.text_input("كلمة مرور المدير:", type="password")
         if st.button("دخول"):
             if pwd == "12345": st.session_state.admin = True; st.rerun()
             else: st.error("كلمة المرور خطأ")
-            
-    # حالة الدخول (هنا تظهر الإضافة والحذف تحت زر الخروج)
     else:
         st.success("أنت الآن بصلاحيات المدير")
         
-        # نموذج الإضافة داخل القائمة الجانبية
+        # نموذج الإضافة (سيقوم تلقائياً بتسجيل اسم المدير 'Admin')
         with st.form("add_sidebar", clear_on_submit=True):
             st.write("### ➕ إضافة مشترك")
             name = st.text_input("اسم المشترك")
             if st.form_submit_button("حفظ"):
                 conn = sqlite3.connect('village_water.db')
-                conn.execute("INSERT INTO subscribers (name) VALUES (?)", (name,))
+                # هنا قمنا بتخزين 'Admin' في عمود added_by
+                conn.execute("INSERT INTO subscribers (name, added_by) VALUES (?, ?)", (name, "المدير"))
                 conn.commit()
                 conn.close()
                 st.rerun()
         
-        # نموذج الحذف داخل القائمة الجانبية
         sub_id = st.number_input("رقم (ID) للحذف:", min_value=1, step=1)
         if st.button("🗑 حذف المشترك"):
             conn = sqlite3.connect('village_water.db')
@@ -53,7 +52,7 @@ with st.sidebar:
             
         if st.button("خروج"): st.session_state.admin = False; st.rerun()
 
-# العرض العام (خارج القائمة الجانبية)
+# العرض العام
 st.subheader("👥 قائمة المشتركين")
 conn = sqlite3.connect('village_water.db')
 df = pd.read_sql_query("SELECT * FROM subscribers", conn)
@@ -63,6 +62,9 @@ if not df.empty:
     cols = st.columns(4)
     for index, row in df.iterrows():
         with cols[index % 4]:
-            st.container(border=True).write(f"🆔 {row['id']} \n\n 👤 {row['name']}")
+            # هنا التعديل: عرض اسم من أضاف المشترك بدلاً من الـ ID
+            with st.container(border=True):
+                st.write(f"👤 **الاسم:** {row['name']}")
+                st.write(f"✍️ **بواسطة:** {row['added_by'] if row['added_by'] else 'غير معروف'}")
 else:
     st.info("لا يوجد مشتركين.")
