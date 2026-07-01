@@ -6,8 +6,7 @@ import sqlite3
 def init_db():
     conn = sqlite3.connect('village_water.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS subscribers 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS subscribers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)''')
     conn.commit()
     conn.close()
 
@@ -16,13 +15,13 @@ init_db()
 st.set_page_config(page_title="نظام إدارة المياه", layout="wide")
 st.title("💧 نظام إدارة عدادات المياه")
 
-# لوحة التحكم
+# لوحة جانبية للدخول فقط
 with st.sidebar:
-    st.header("⚙️ لوحة الإدارة")
+    st.header("🔑 دخول المدير")
     if "admin" not in st.session_state: st.session_state.admin = False
     
     if not st.session_state.admin:
-        pwd = st.text_input("كلمة مرور المدير:", type="password")
+        pwd = st.text_input("كلمة المرور:", type="password")
         if st.button("دخول"):
             if pwd == "12345": st.session_state.admin = True; st.rerun()
             else: st.error("كلمة المرور خطأ")
@@ -30,15 +29,15 @@ with st.sidebar:
         st.success("أنت الآن بصلاحيات المدير")
         if st.button("خروج"): st.session_state.admin = False; st.rerun()
 
-# هنا وضعنا أدوات الإضافة والحذف في الواجهة الرئيسية مباشرة
+# أدوات المدير (تظهر في الوسط فقط بعد الدخول)
 if st.session_state.admin:
-    st.info("🛠 أدوات التحكم الخاصة بالمدير:")
+    st.info("🛠 أدوات المدير (الإضافة والحذف)")
     col1, col2 = st.columns(2)
     
     with col1:
-        with st.form("add_sub_main", clear_on_submit=True):
-            name = st.text_input("اسم المشترك الجديد")
-            if st.form_submit_button("إضافة المشترك"):
+        with st.form("add_form", clear_on_submit=True):
+            name = st.text_input("اسم المشترك الجديد:")
+            if st.form_submit_button("إضافة مشترك"):
                 conn = sqlite3.connect('village_water.db')
                 conn.execute("INSERT INTO subscribers (name) VALUES (?)", (name,))
                 conn.commit()
@@ -47,27 +46,25 @@ if st.session_state.admin:
                 
     with col2:
         sub_id = st.number_input("رقم المشترك (ID) للحذف:", min_value=1, step=1)
-        if st.button("حذف المشترك المحدد"):
+        if st.button("حذف المشترك نهائياً"):
             conn = sqlite3.connect('village_water.db')
             conn.execute("DELETE FROM subscribers WHERE id=?", (sub_id,))
             conn.commit()
             conn.close()
             st.rerun()
+    st.divider()
 
-st.divider()
-
-# عرض المشتركين
+# عرض المشتركين (يظهر للجميع)
 st.subheader("👥 قائمة المشتركين")
 conn = sqlite3.connect('village_water.db')
 df = pd.read_sql_query("SELECT * FROM subscribers", conn)
 conn.close()
 
+# عرض المشتركين كبطاقات
 if not df.empty:
     cols = st.columns(4)
     for index, row in df.iterrows():
         with cols[index % 4]:
-            with st.container(border=True):
-                st.write(f"**ID:** {row['id']}")
-                st.write(f"**الاسم:** {row['name']}")
+            st.container(border=True).write(f"🆔 {row['id']} \n\n 👤 {row['name']}")
 else:
-    st.info("لا يوجد مشتركين.")
+    st.write("لا يوجد مشتركين حالياً.")
